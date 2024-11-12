@@ -2,7 +2,9 @@ pub mod board;
 pub mod position;
 pub mod ship;
 
+pub use board::Board;
 pub use position::Position;
+pub use ship::Ships;
 
 #[derive(thiserror::Error, Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Error {

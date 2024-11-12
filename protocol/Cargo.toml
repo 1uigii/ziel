@@ -1,0 +1,13 @@
+[package]
+name = "protocol"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+server = []
+client = []
+
+[dependencies]
+thiserror = "2.0.3"
+logic = { path = "../logic" }
+tokio = { version = "1.41.1", features = ["io-std", "io-util"] }

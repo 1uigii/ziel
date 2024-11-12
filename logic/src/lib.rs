@@ -4,6 +4,18 @@ pub mod ship;
 
 pub use position::Position;
 
+#[derive(thiserror::Error, Debug, PartialEq, Eq, Clone, Copy)]
+pub enum Error {
+    #[error("logic :: position :: {0}")]
+    PositionOutOfBounds(#[from] position::OutOfBoundsError),
+    #[error("logic :: ship :: {0}")]
+    ShipOutOfBounds(#[from] ship::OutOfBoundsError),
+    #[error("logic :: ship :: {0}")]
+    ShipCollection(#[from] ship::ShipCollectionError),
+    #[error("logic :: board :: {0}")]
+    Board(#[from] board::AlreadyHitError),
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

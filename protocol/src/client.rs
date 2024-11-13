@@ -7,12 +7,13 @@ pub enum Error {
 }
 
 /// Message that gets send from the client and is received from the server
+#[derive(Debug, Clone, Copy)]
 pub enum Message {
     HandShake,
 
     Acknowledge,
 
-    ReturnShip(logic::Ships),
+    ReturnShips(logic::Ships),
     ReturnTarget(logic::Position),
 }
 
@@ -21,7 +22,7 @@ impl crate::raw::IntoMessage for Message {
         match self {
             Message::HandShake => crate::raw::HANDSHAKE.to_message(),
             Message::Acknowledge => crate::raw::ACKNOWLEDGE.to_message(),
-            Message::ReturnShip(ships) => crate::raw::Message {
+            Message::ReturnShips(ships) => crate::raw::Message {
                 type_marker: crate::raw::TYPE_REQ_RET_SHIPS,
                 body: ships
                     .into_iter()
@@ -73,7 +74,7 @@ impl crate::raw::TryFromMessage for Message {
                     .collect::<Result<Vec<_>, _>>()?
                     .try_into()
                     .expect("body is already checked for size");
-                Ok(Message::ReturnShip(
+                Ok(Message::ReturnShips(
                     logic::Ships::try_from(ships).map_err(logic::Error::from)?,
                 ))
             }

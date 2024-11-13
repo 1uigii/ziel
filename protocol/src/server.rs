@@ -6,6 +6,7 @@ pub enum Error {
     InvalidLogic(#[from] logic::Error),
 }
 
+#[derive(Debug, Clone, Copy)]
 pub enum Message {
     Handshake,
 

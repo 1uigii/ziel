@@ -1,8 +1,6 @@
 use tokio::io;
 
-#[cfg(feature = "client")]
 pub mod client;
-#[cfg(feature = "server")]
 pub mod server;
 
 pub(crate) mod raw;
@@ -15,12 +13,12 @@ where
     #[error("protocol :: io :: {0}")]
     Io(#[from] io::Error),
     #[error("protocol :: {0}")]
-    Protocon(M::Error),
+    Protocol(M::Error),
 }
 
 impl<M: raw::TryFromMessage> Error<M> {
     fn from_prot_err(err: M::Error) -> Error<M> {
-        Error::<M>::Protocon(err)
+        Error::<M>::Protocol(err)
     }
 }
 

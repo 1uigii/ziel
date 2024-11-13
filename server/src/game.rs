@@ -47,10 +47,7 @@ impl Game {
         success?;
 
         let (_, opponent_board) = self.split_player_boards();
-        let attack_info = opponent_board
-            .target(target)
-            .map_err(|_| todo!("implement proper error handling"))
-            .unwrap();
+        let attack_info = opponent_board.target(target)?;
 
         let (player, opponent) = self.split_player_streams();
         let (success1, success2) = tokio::join!(

@@ -8,15 +8,16 @@ pub enum Error {
     Io(#[from] io::Error),
     #[error("server :: {0}")]
     ServerRequest(#[from] protocol::Error<server::Message>),
-    #[error("server :: client response {0}")]
+    #[error("server :: client response :: {0}")]
     ClientResponse(#[from] protocol::Error<client::Message>),
     #[error("server :: client response :: unexpected response :: {0:?} to {1:?}")]
     ClientResponseUnexpected(server::Message, client::Message),
+    #[error("server :: client response :: logic :: {0}")]
+    ClientResponseTargetAlreadyHit(#[from] logic::board::AlreadyHitError),
 }
 
 pub enum Response {
     Successful,
-    Invalid,
 
     ReturnShips(logic::Ships),
     ReturnTarget(logic::Position),

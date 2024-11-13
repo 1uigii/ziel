@@ -1,4 +1,4 @@
-use tokio::{io, net};
+use tokio::net;
 
 pub(crate) mod stream;
 pub(crate) use stream::Stream;
@@ -10,8 +10,10 @@ async fn handle_connection(
 ) -> Result<(), stream::Error> {
     let stream1 = Stream::handshake(stream1).await?;
     let stream2 = Stream::handshake(stream2).await?;
+    tracing::info!("HANDSHAKE successful");
 
     let game = game::Game::new(stream1, stream2).await?;
+    tracing::info!("board initialization successful");
 
     tokio::spawn(async move {
         let _ = game.play().await.unwrap();

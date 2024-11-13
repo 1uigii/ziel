@@ -70,14 +70,14 @@ impl Board {
         Board::from(ships)
     }
 
-    pub fn target(&mut self, pos: crate::Position) -> Option<AttackInfo> {
+    pub fn target(&mut self, pos: crate::Position) -> Result<AttackInfo, AlreadyHitError> {
         if std::mem::replace(&mut self.hit_map[pos], true) {
-            return None;
+            return Err(AlreadyHitError);
         }
 
         match self.ship_map[pos].to_option() {
-            Some(i) => Some(AttackInfo::Hit(self.is_ship_sunken(i))),
-            None => Some(AttackInfo::Miss),
+            Some(i) => Ok(AttackInfo::Hit(self.is_ship_sunken(i))),
+            None => Ok(AttackInfo::Miss),
         }
     }
 

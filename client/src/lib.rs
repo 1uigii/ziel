@@ -1,5 +1,11 @@
 use protocol::{client, server};
-use tokio::{io, net};
+use tokio::{
+    io::{self, AsyncWriteExt},
+    net,
+};
+
+pub mod ui;
+pub use ui::UI;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error<I: UI> {
@@ -8,88 +14,130 @@ pub enum Error<I: UI> {
     #[error("client :: networking :: {0}")]
     Networking(#[from] io::Error),
     #[error("client :: {0}")]
-    UIError(#[from] UIError<I>),
-    #[error("client :: server request :: unexpected request")]
-    ServerRequestUnexpected,
+    UIError(#[from] ui::Error<I>),
+    #[error("client :: server request :: unexpected request :: {0:?}")]
+    UnexpectedRequest(server::Message),
+    #[error("client :: server request :: unexpected termination")]
+    UnexpectedTerminationRequest,
 }
 
-#[derive(thiserror::Error, Debug)]
-#[error("ui :: {0}")]
-pub struct UIError<I: UI>(I::Error);
-
-impl<I: UI> UIError<I> {
-    pub fn to_ui_error(error: I::Error) -> UIError<I> {
-        UIError::<I>(error)
-    }
-}
-
-pub trait UI {
-    type Error: std::error::Error;
-
-    fn request_ships(&mut self) -> Result<logic::Ships, Self::Error>;
-    fn request_target(&mut self, info: ClientInfo) -> Result<logic::Position, Self::Error>;
-
-    fn display_board(&mut self, info: ClientInfo) -> Result<(), Self::Error>;
-    fn display_victory(&mut self, info: ClientInfo) -> Result<(), Self::Error>;
-    fn display_loss(&mut self, info: ClientInfo) -> Result<(), Self::Error>;
-}
-
-pub enum Message {}
-
-pub struct ClientInfo<'i> {
-    messages: &'i [Message],
-    board: &'i logic::Board,
-    hitmap: &'i [[bool; 10]; 10],
-}
-
-impl<'i, I: UI> From<&'i Client<I>> for ClientInfo<'i> {
-    fn from(client: &'i Client<I>) -> Self {
-        ClientInfo {
-            messages: &client.messages,
-            board: &client.board,
-            hitmap: &client.hitmap,
-        }
-    }
-}
-
-pub struct Client<I: UI> {
+pub struct Client {
     stream: net::TcpStream,
 
-    ui: I,
-    messages: Vec<Message>,
+    messages: Vec<ui::Message>,
 
-    board: logic::Board,
-    hitmap: [[bool; 10]; 10],
+    ships: logic::Ships,
+    client_hit_map: [[Option<logic::board::AttackInfo>; 10]; 10],
+    opponent_hit_map: [[Option<logic::board::AttackInfo>; 10]; 10],
 }
 
-impl<I: UI> Client<I> {
-    pub async fn handshake(mut ui: I, addr: std::net::SocketAddr) -> Result<Client<I>, Error<I>> {
-        let board = logic::Board::from_ships(ui.request_ships().map_err(UIError::to_ui_error)?);
+impl Client {
+    pub async fn handshake<I: UI>(
+        mut ui: I,
+        addr: std::net::SocketAddr,
+    ) -> Result<Client, Error<I>> {
+        let ships = ui.request_ships().map_err(ui::Error::to_ui_error)?;
 
         let mut stream = net::TcpStream::connect(addr).await?;
         protocol::write(&mut stream, client::Message::HandShake).await?;
         match protocol::read(&mut stream).await? {
             server::Message::Handshake => {}
-            _ => return Err(Error::<I>::ServerRequestUnexpected),
+            req => return Err(Error::UnexpectedRequest(req)),
         }
 
         Ok(Client {
             stream,
-            ui,
+            ships,
             messages: vec![],
-            board,
-            hitmap: [[false; 10]; 10],
+            opponent_hit_map: [[None; 10]; 10],
+            client_hit_map: [[None; 10]; 10],
         })
     }
-}
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+    async fn handle_request<I: UI>(&mut self, ui: &mut I) -> Result<Option<bool>, Error<I>> {
+        let mut state = None;
+        let request = protocol::read(&mut self.stream).await?;
+        let response = match request {
+            server::Message::RequestShips => client::Message::ReturnShips(self.ships.clone()),
+            server::Message::RequestTarget => client::Message::ReturnTarget(
+                ui.request_target((self as &Client).into())
+                    .map_err(ui::Error::to_ui_error)?,
+            ),
+            server::Message::InformTargetSelection => {
+                self.messages.push(ui::Message::OpponentSelectsTarget);
+                client::Message::Acknowledge
+            }
+            server::Message::InformTargetMissClient(pos) => {
+                self.client_hit_map[pos] = Some(logic::board::AttackInfo::Miss);
+                self.messages.push(ui::Message::OpponentMissedClient);
+                client::Message::Acknowledge
+            }
+            server::Message::InformTargetMissOpponent(pos) => {
+                self.opponent_hit_map[pos] = Some(logic::board::AttackInfo::Miss);
+                self.messages.push(ui::Message::ClientMissedOpponent);
+                client::Message::Acknowledge
+            }
+            server::Message::InformTargetHitClient(pos, sunken) => {
+                self.client_hit_map[pos] = Some(logic::board::AttackInfo::Hit(sunken));
+                self.messages.push(ui::Message::OpponentHitClient);
+                if sunken {
+                    self.messages.push(ui::Message::ClientShipSunk);
+                }
+                client::Message::Acknowledge
+            }
+            server::Message::InformTargetHitOpponent(pos, sunken) => {
+                self.opponent_hit_map[pos] = Some(logic::board::AttackInfo::Hit(sunken));
+                self.messages.push(ui::Message::ClientHitOpponent);
+                if sunken {
+                    self.messages.push(ui::Message::OpponentShipSunk);
+                }
+                client::Message::Acknowledge
+            }
+            server::Message::InformLoss => {
+                state = Some(false);
+                client::Message::Acknowledge
+            }
+            server::Message::InformVictory => {
+                state = Some(true);
+                client::Message::Acknowledge
+            }
+            server::Message::Invalid => {
+                return Err(Error::UnexpectedRequest(server::Message::Invalid))
+            }
+            server::Message::TerminateConnection => {
+                return Err(Error::UnexpectedTerminationRequest)
+            }
+            req => return Err(Error::UnexpectedRequest(req)),
+        };
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
+        protocol::write(&mut self.stream, response).await?;
+
+        Ok(state)
+    }
+
+    pub async fn play<I: UI>(mut self, mut ui: I) -> Result<bool, Error<I>> {
+        loop {
+            match self.handle_request(&mut ui).await {
+                Ok(Some(victory)) => {
+                    if let Ok(server::Message::TerminateConnection) =
+                        protocol::read(&mut self.stream).await
+                    {
+                        let _ =
+                            protocol::write(&mut self.stream, client::Message::Acknowledge).await;
+                    };
+                    self.stream.shutdown().await?;
+                    if victory {
+                        ui.display_victory((&self).into())
+                            .map_err(ui::Error::to_ui_error)?;
+                    } else {
+                        ui.display_loss((&self).into())
+                            .map_err(ui::Error::to_ui_error)?;
+                    }
+                    return Ok(victory);
+                }
+                Ok(None) => continue,
+                Err(err) => return Err(err),
+            }
+        }
     }
 }

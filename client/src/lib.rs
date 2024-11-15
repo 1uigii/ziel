@@ -33,7 +33,7 @@ pub struct Client {
 
 impl Client {
     pub async fn handshake<I: UI>(
-        mut ui: I,
+        ui: &mut I,
         addr: std::net::SocketAddr,
     ) -> Result<Client, Error<I>> {
         let ships = ui.request_ships().map_err(ui::Error::to_ui_error)?;
@@ -115,9 +115,9 @@ impl Client {
         Ok(state)
     }
 
-    pub async fn play<I: UI>(mut self, mut ui: I) -> Result<bool, Error<I>> {
+    pub async fn play<I: UI>(mut self, ui: &mut I) -> Result<bool, Error<I>> {
         loop {
-            match self.handle_request(&mut ui).await {
+            match self.handle_request(ui).await {
                 Ok(Some(victory)) => {
                     if let Ok(server::Message::TerminateConnection) =
                         protocol::read(&mut self.stream).await

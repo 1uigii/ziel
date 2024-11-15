@@ -9,9 +9,9 @@ impl<I: UI> Error<I> {
 }
 
 pub struct ClientInfo<'i> {
-    messages: &'i [Message],
-    client_hit_map: &'i [[Option<logic::board::AttackInfo>; 10]; 10],
-    opponent_hit_map: &'i [[Option<logic::board::AttackInfo>; 10]; 10],
+    pub messages: &'i [Message],
+    pub client_hit_map: &'i [[Option<logic::board::AttackInfo>; 10]; 10],
+    pub opponent_hit_map: &'i [[Option<logic::board::AttackInfo>; 10]; 10],
 }
 
 impl<'i> From<&'i crate::Client> for ClientInfo<'i> {

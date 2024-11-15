@@ -141,6 +141,12 @@ impl TryFrom<[Ship; 5]> for Ships {
     }
 }
 
+impl Ships {
+    pub fn into_ship_array(self) -> [Ship; 5] {
+        self.0
+    }
+}
+
 impl IntoIterator for Ships {
     type Item = Ship;
 

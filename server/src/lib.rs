@@ -16,8 +16,10 @@ async fn handle_connection(
     tracing::info!("board initialization successful");
 
     tokio::spawn(async move {
-        let _ = game.play().await.unwrap();
-        todo!()
+        match game.play().await {
+            Ok(()) => tracing::info!("game thread :: finished successfully"),
+            Err(err) => tracing::error!("game thread :: {err}"),
+        }
     });
 
     Ok(())

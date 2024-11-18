@@ -1,0 +1,11 @@
+[package]
+name = "tui"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+logic = { path = "../logic/" }
+client = { path = "../client/" }
+thiserror = "2.0.3"
+ratatui = "0.29.0"
+crossterm = "0.28.1"

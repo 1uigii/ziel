@@ -58,13 +58,13 @@ impl Game {
         success2?;
 
         match attack_info {
-            logic::board::AttackInfo::Hit(false) => Ok(true),
+            logic::board::AttackInfo::Hit(None) => Ok(true),
             logic::board::AttackInfo::Miss => {
                 self.turn += 1;
                 Ok(true)
             }
 
-            logic::board::AttackInfo::Hit(true) => {
+            logic::board::AttackInfo::Hit(Some(_)) => {
                 let (_, opponent_board) = self.split_player_boards();
                 if opponent_board.is_all_sunken() {
                     let (player, opponent) = self.split_player_streams();

@@ -37,7 +37,7 @@ impl ShipIndexReference {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AttackInfo {
-    Hit(bool),
+    Hit(Option<crate::ship::Ship>),
     Miss,
 }
 
@@ -76,7 +76,11 @@ impl Board {
         }
 
         match self.ship_map[pos].to_option() {
-            Some(i) => Ok(AttackInfo::Hit(self.is_ship_sunken(i))),
+            Some(i) => Ok(AttackInfo::Hit(if self.is_ship_sunken(i) {
+                Some(self.ships[i as usize])
+            } else {
+                None
+            })),
             None => Ok(AttackInfo::Miss),
         }
     }

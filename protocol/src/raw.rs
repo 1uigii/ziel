@@ -78,12 +78,14 @@ pub const INFORM_TARGET_SELECTION: MessageMatch = MessageMatch {
 pub const TYPE_INFORM_MISS: u8 = 151;
 pub const TYPE_INFORM_HIT: u8 = 152;
 
+pub const TYPE_INFORM_SHIP_SUNKEN: u8 = 153;
+
 pub const INFORM_LOSS: MessageMatch = MessageMatch {
-    type_marker: 152,
+    type_marker: 154,
     body: b"LOSS",
 };
 
 pub const INFORM_VICTORY: MessageMatch = MessageMatch {
-    type_marker: 152,
+    type_marker: 155,
     body: b"VICTORY",
 };

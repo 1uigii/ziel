@@ -56,6 +56,8 @@ impl Stream {
                 | server::Message::InformTargetMissOpponent(..)
                 | server::Message::InformTargetHitClient(..)
                 | server::Message::InformTargetHitOpponent(..)
+                | server::Message::InformShipSunkenClient(..)
+                | server::Message::InformShipSunkenOpponent(..)
                 | server::Message::InformLoss
                 | server::Message::InformVictory,
                 client::Message::Acknowledge,
@@ -110,17 +112,41 @@ impl Stream {
         attack_info: logic::board::AttackInfo,
         pos: logic::Position,
     ) -> Result<(), Error> {
-        match self
-            .request(match attack_info {
-                logic::board::AttackInfo::Hit(sunken) => {
-                    server::Message::InformTargetHitClient(pos, sunken)
+        match attack_info {
+            logic::board::AttackInfo::Hit(Some(ship)) => {
+                match self
+                    .request(server::Message::InformTargetHitClient(pos))
+                    .await?
+                {
+                    Response::Successful => {}
+                    _ => unreachable!("request statement fallible"),
                 }
-                logic::board::AttackInfo::Miss => server::Message::InformTargetMissClient(pos),
-            })
-            .await?
-        {
-            Response::Successful => Ok(()),
-            _ => unreachable!("request match statement fallible"),
+                match self
+                    .request(server::Message::InformShipSunkenClient(ship))
+                    .await?
+                {
+                    Response::Successful => Ok(()),
+                    _ => unreachable!("request statement fallible"),
+                }
+            }
+            logic::board::AttackInfo::Hit(None) => {
+                match self
+                    .request(server::Message::InformTargetHitClient(pos))
+                    .await?
+                {
+                    Response::Successful => Ok(()),
+                    _ => unreachable!("request statement fallible"),
+                }
+            }
+            logic::board::AttackInfo::Miss => {
+                match self
+                    .request(server::Message::InformTargetMissClient(pos))
+                    .await?
+                {
+                    Response::Successful => Ok(()),
+                    _ => unreachable!("request statement fallible"),
+                }
+            }
         }
     }
 
@@ -129,17 +155,41 @@ impl Stream {
         attack_info: logic::board::AttackInfo,
         pos: logic::Position,
     ) -> Result<(), Error> {
-        match self
-            .request(match attack_info {
-                logic::board::AttackInfo::Hit(sunken) => {
-                    server::Message::InformTargetHitOpponent(pos, sunken)
+        match attack_info {
+            logic::board::AttackInfo::Hit(Some(ship)) => {
+                match self
+                    .request(server::Message::InformTargetHitOpponent(pos))
+                    .await?
+                {
+                    Response::Successful => {}
+                    _ => unreachable!("request statement fallible"),
                 }
-                logic::board::AttackInfo::Miss => server::Message::InformTargetMissOpponent(pos),
-            })
-            .await?
-        {
-            Response::Successful => Ok(()),
-            _ => unreachable!("request match statement fallible"),
+                match self
+                    .request(server::Message::InformShipSunkenOpponent(ship))
+                    .await?
+                {
+                    Response::Successful => Ok(()),
+                    _ => unreachable!("request statement fallible"),
+                }
+            }
+            logic::board::AttackInfo::Hit(None) => {
+                match self
+                    .request(server::Message::InformTargetHitOpponent(pos))
+                    .await?
+                {
+                    Response::Successful => Ok(()),
+                    _ => unreachable!("request statement fallible"),
+                }
+            }
+            logic::board::AttackInfo::Miss => {
+                match self
+                    .request(server::Message::InformTargetMissOpponent(pos))
+                    .await?
+                {
+                    Response::Successful => Ok(()),
+                    _ => unreachable!("request statement fallible"),
+                }
+            }
         }
     }
 }

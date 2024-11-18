@@ -19,8 +19,10 @@ pub enum Message {
     InformTargetSelection,
     InformTargetMissClient(logic::Position),
     InformTargetMissOpponent(logic::Position),
-    InformTargetHitClient(logic::Position, bool),
-    InformTargetHitOpponent(logic::Position, bool),
+    InformTargetHitClient(logic::Position),
+    InformTargetHitOpponent(logic::Position),
+    InformShipSunkenClient(logic::ship::Ship),
+    InformShipSunkenOpponent(logic::ship::Ship),
     InformLoss,
     InformVictory,
 }
@@ -42,13 +44,35 @@ impl crate::raw::IntoMessage for Message {
                 type_marker: crate::raw::TYPE_INFORM_MISS,
                 body: vec![1, pos.to_byte()],
             },
-            Message::InformTargetHitClient(pos, sunken) => crate::raw::Message {
+            Message::InformTargetHitClient(pos) => crate::raw::Message {
                 type_marker: crate::raw::TYPE_INFORM_HIT,
-                body: vec![0, pos.to_byte(), sunken as u8],
+                body: vec![0, pos.to_byte()],
             },
-            Message::InformTargetHitOpponent(pos, sunken) => crate::raw::Message {
+            Message::InformTargetHitOpponent(pos) => crate::raw::Message {
                 type_marker: crate::raw::TYPE_INFORM_HIT,
-                body: vec![1, pos.to_byte(), sunken as u8],
+                body: vec![1, pos.to_byte()],
+            },
+            Message::InformShipSunkenClient(ship) => crate::raw::Message {
+                type_marker: crate::raw::TYPE_INFORM_SHIP_SUNKEN,
+                body: match ship.to_ship_plan() {
+                    logic::ship::ShipPlan::Horizontal { pos, length } => {
+                        vec![0, 0, pos.to_byte(), length]
+                    }
+                    logic::ship::ShipPlan::Vertical { pos, length } => {
+                        vec![0, 1, pos.to_byte(), length]
+                    }
+                },
+            },
+            Message::InformShipSunkenOpponent(ship) => crate::raw::Message {
+                type_marker: crate::raw::TYPE_INFORM_SHIP_SUNKEN,
+                body: match ship.to_ship_plan() {
+                    logic::ship::ShipPlan::Horizontal { pos, length } => {
+                        vec![1, 0, pos.to_byte(), length]
+                    }
+                    logic::ship::ShipPlan::Vertical { pos, length } => {
+                        vec![1, 1, pos.to_byte(), length]
+                    }
+                },
             },
             Message::InformLoss => crate::raw::INFORM_LOSS.to_message(),
             Message::InformVictory => crate::raw::INFORM_VICTORY.to_message(),
@@ -80,19 +104,51 @@ impl crate::raw::TryFromMessage for Message {
                 pos.clone().try_into().map_err(logic::Error::from)?,
             )),
             crate::raw::MessageMatch {
-                type_marker: crate::raw::TYPE_INFORM_MISS,
-                body: [0, pos, sunken],
+                type_marker: crate::raw::TYPE_INFORM_HIT,
+                body: [0, pos],
             } => Ok(Message::InformTargetHitClient(
                 pos.clone().try_into().map_err(logic::Error::from)?,
-                *sunken == 1,
             )),
             crate::raw::MessageMatch {
-                type_marker: crate::raw::TYPE_INFORM_MISS,
-                body: [1, pos, sunken],
+                type_marker: crate::raw::TYPE_INFORM_HIT,
+                body: [1, pos],
             } => Ok(Message::InformTargetHitOpponent(
                 pos.clone().try_into().map_err(logic::Error::from)?,
-                *sunken == 1,
             )),
+            crate::raw::MessageMatch {
+                type_marker: crate::raw::TYPE_INFORM_SHIP_SUNKEN,
+                body: [0, rotation, pos, length],
+            } => {
+                let pos = pos.clone().try_into().map_err(logic::Error::from)?;
+                let length = length.clone();
+
+                Ok(Message::InformShipSunkenClient(
+                    if *rotation == 0 {
+                        logic::ship::ShipPlan::Horizontal { pos, length }
+                    } else {
+                        logic::ship::ShipPlan::Vertical { pos, length }
+                    }
+                    .try_into()
+                    .map_err(logic::Error::from)?,
+                ))
+            }
+            crate::raw::MessageMatch {
+                type_marker: crate::raw::TYPE_INFORM_SHIP_SUNKEN,
+                body: [1, rotation, pos, length],
+            } => {
+                let pos = pos.clone().try_into().map_err(logic::Error::from)?;
+                let length = length.clone();
+
+                Ok(Message::InformShipSunkenOpponent(
+                    if *rotation == 0 {
+                        logic::ship::ShipPlan::Horizontal { pos, length }
+                    } else {
+                        logic::ship::ShipPlan::Vertical { pos, length }
+                    }
+                    .try_into()
+                    .map_err(logic::Error::from)?,
+                ))
+            }
             crate::raw::INFORM_LOSS => Ok(Message::InformLoss),
             crate::raw::INFORM_VICTORY => Ok(Message::InformVictory),
             _ => Err(Error::InvalidBytes),

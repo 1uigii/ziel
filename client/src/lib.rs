@@ -1,8 +1,10 @@
 use protocol::{client, server};
 use tokio::{
     io::{self, AsyncWriteExt},
-    net,
+    net, time,
 };
+
+use arrayvec::ArrayVec;
 
 pub mod ui;
 pub use ui::UI;
@@ -21,14 +23,21 @@ pub enum Error<I: UI> {
     UnexpectedTerminationRequest,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum AttackInfo {
+    Hit,
+    Miss,
+}
+
 pub struct Client {
     stream: net::TcpStream,
 
     messages: Vec<ui::Message>,
 
     ships: logic::Ships,
-    client_hit_map: [[Option<logic::board::AttackInfo>; 10]; 10],
-    opponent_hit_map: [[Option<logic::board::AttackInfo>; 10]; 10],
+    client_hit_map: [[Option<AttackInfo>; 10]; 10],
+    opponent_hit_map: [[Option<AttackInfo>; 10]; 10],
+    opponent_ships: ArrayVec<logic::ship::Ship, 5>,
 }
 
 impl Client {
@@ -51,12 +60,24 @@ impl Client {
             messages: vec![],
             opponent_hit_map: [[None; 10]; 10],
             client_hit_map: [[None; 10]; 10],
+            opponent_ships: ArrayVec::new(),
         })
     }
 
     async fn handle_request<I: UI>(&mut self, ui: &mut I) -> Result<Option<bool>, Error<I>> {
         let mut state = None;
-        let request = protocol::read(&mut self.stream).await?;
+        let info = unsafe { &*(self as *const Self) }.into();
+        let request = tokio::select! {
+            err = async {
+                loop {
+                    match ui.display_board(info) {
+                        Ok(()) => time::sleep(time::Duration::from_millis(50)).await,
+                        Err(err) => break ui::Error::to_ui_error(err).into(),
+                    }
+                }
+            } => Err(err),
+            req = protocol::read(&mut self.stream) => req.map_err(Error::<I>::from),
+        }?;
         let response = match request {
             server::Message::RequestShips => client::Message::ReturnShips(self.ships.clone()),
             server::Message::RequestTarget => client::Message::ReturnTarget(
@@ -68,29 +89,23 @@ impl Client {
                 client::Message::Acknowledge
             }
             server::Message::InformTargetMissClient(pos) => {
-                self.client_hit_map[pos] = Some(logic::board::AttackInfo::Miss);
+                self.client_hit_map[pos] = Some(AttackInfo::Miss);
                 self.messages.push(ui::Message::OpponentMissedClient);
                 client::Message::Acknowledge
             }
             server::Message::InformTargetMissOpponent(pos) => {
-                self.opponent_hit_map[pos] = Some(logic::board::AttackInfo::Miss);
+                self.opponent_hit_map[pos] = Some(AttackInfo::Miss);
                 self.messages.push(ui::Message::ClientMissedOpponent);
                 client::Message::Acknowledge
             }
-            server::Message::InformTargetHitClient(pos, sunken) => {
-                self.client_hit_map[pos] = Some(logic::board::AttackInfo::Hit(sunken));
+            server::Message::InformTargetHitClient(pos) => {
+                self.client_hit_map[pos] = Some(AttackInfo::Hit);
                 self.messages.push(ui::Message::OpponentHitClient);
-                if sunken {
-                    self.messages.push(ui::Message::ClientShipSunk);
-                }
                 client::Message::Acknowledge
             }
-            server::Message::InformTargetHitOpponent(pos, sunken) => {
-                self.opponent_hit_map[pos] = Some(logic::board::AttackInfo::Hit(sunken));
+            server::Message::InformTargetHitOpponent(pos) => {
+                self.opponent_hit_map[pos] = Some(AttackInfo::Hit);
                 self.messages.push(ui::Message::ClientHitOpponent);
-                if sunken {
-                    self.messages.push(ui::Message::OpponentShipSunk);
-                }
                 client::Message::Acknowledge
             }
             server::Message::InformLoss => {
@@ -107,10 +122,30 @@ impl Client {
             server::Message::TerminateConnection => {
                 return Err(Error::UnexpectedTerminationRequest)
             }
+            server::Message::InformShipSunkenClient(_) => {
+                self.messages.push(ui::Message::ClientShipSunk);
+                client::Message::Acknowledge
+            }
+            server::Message::InformShipSunkenOpponent(ship) => {
+                self.messages.push(ui::Message::OpponentShipSunk);
+                self.opponent_ships.push(ship);
+                client::Message::Acknowledge
+            }
             req => return Err(Error::UnexpectedRequest(req)),
         };
 
-        protocol::write(&mut self.stream, response).await?;
+        let info = unsafe { &*(self as *const Self) }.into();
+        tokio::select! {
+            err = async {
+                loop {
+                    match ui.display_board(info) {
+                        Ok(()) => time::sleep(time::Duration::from_millis(50)).await,
+                        Err(err) => break ui::Error::to_ui_error(err).into(),
+                    }
+                }
+            } => Err(err),
+            req = protocol::write(&mut self.stream, response) => req.map_err(Error::<I>::from),
+        }?;
 
         Ok(state)
     }

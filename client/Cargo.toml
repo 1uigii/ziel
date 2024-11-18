@@ -8,3 +8,4 @@ protocol = { path = "../protocol" }
 logic = { path = "../logic" }
 thiserror = "2.0.3"
 tokio = { version = "1.41.1", features = ["full"] }
+arrayvec = "0.7.6"

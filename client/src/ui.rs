@@ -8,18 +8,23 @@ impl<I: UI> Error<I> {
     }
 }
 
+#[derive(Clone, Copy, Debug)]
 pub struct ClientInfo<'i> {
     pub messages: &'i [Message],
-    pub client_hit_map: &'i [[Option<logic::board::AttackInfo>; 10]; 10],
-    pub opponent_hit_map: &'i [[Option<logic::board::AttackInfo>; 10]; 10],
+    pub ships: &'i logic::Ships,
+    pub client_hit_map: &'i [[Option<crate::AttackInfo>; 10]; 10],
+    pub opponent_hit_map: &'i [[Option<crate::AttackInfo>; 10]; 10],
+    pub opponent_ships: &'i [logic::ship::Ship],
 }
 
 impl<'i> From<&'i crate::Client> for ClientInfo<'i> {
     fn from(client: &'i crate::Client) -> Self {
         ClientInfo {
             messages: &client.messages,
+            ships: &client.ships,
             client_hit_map: &client.client_hit_map,
             opponent_hit_map: &client.opponent_hit_map,
+            opponent_ships: &client.opponent_ships,
         }
     }
 }
@@ -35,6 +40,7 @@ pub trait UI {
     fn display_loss(&mut self, info: ClientInfo) -> Result<(), Self::Error>;
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Message {
     OpponentSelectsTarget,
     ClientMissedOpponent,

@@ -244,7 +244,7 @@ impl client::UI for Tui {
                     .flex(layout::Flex::Center)
                     .areas(horizonta_area);
 
-                let block = widgets::Block::bordered();
+                let block = widgets::Block::bordered().border_type(widgets::BorderType::Thick);
 
                 let canvas = Tui::new_board_canvas(block).paint(|ctx| {
                     // internal variable dirty needs to be set to `true` D:<

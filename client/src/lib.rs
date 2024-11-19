@@ -90,22 +90,22 @@ impl Client {
             }
             server::Message::InformTargetMissClient(pos) => {
                 self.client_hit_map[pos] = Some(AttackInfo::Miss);
-                self.messages.push(ui::Message::OpponentMissedClient);
+                self.messages.push(ui::Message::OpponentMissedClient(pos));
                 client::Message::Acknowledge
             }
             server::Message::InformTargetMissOpponent(pos) => {
                 self.opponent_hit_map[pos] = Some(AttackInfo::Miss);
-                self.messages.push(ui::Message::ClientMissedOpponent);
+                self.messages.push(ui::Message::ClientMissedOpponent(pos));
                 client::Message::Acknowledge
             }
             server::Message::InformTargetHitClient(pos) => {
                 self.client_hit_map[pos] = Some(AttackInfo::Hit);
-                self.messages.push(ui::Message::OpponentHitClient);
+                self.messages.push(ui::Message::OpponentHitClient(pos));
                 client::Message::Acknowledge
             }
             server::Message::InformTargetHitOpponent(pos) => {
                 self.opponent_hit_map[pos] = Some(AttackInfo::Hit);
-                self.messages.push(ui::Message::ClientHitOpponent);
+                self.messages.push(ui::Message::ClientHitOpponent(pos));
                 client::Message::Acknowledge
             }
             server::Message::InformLoss => {
@@ -122,12 +122,20 @@ impl Client {
             server::Message::TerminateConnection => {
                 return Err(Error::UnexpectedTerminationRequest)
             }
-            server::Message::InformShipSunkenClient(_) => {
-                self.messages.push(ui::Message::ClientShipSunk);
+            server::Message::InformShipSunkenClient(ship) => {
+                let length = match ship.to_ship_plan() {
+                    logic::ship::ShipPlan::Horizontal { length, .. } => length,
+                    logic::ship::ShipPlan::Vertical { length, .. } => length,
+                };
+                self.messages.push(ui::Message::ClientShipSunk(length));
                 client::Message::Acknowledge
             }
             server::Message::InformShipSunkenOpponent(ship) => {
-                self.messages.push(ui::Message::OpponentShipSunk);
+                let length = match ship.to_ship_plan() {
+                    logic::ship::ShipPlan::Horizontal { length, .. } => length,
+                    logic::ship::ShipPlan::Vertical { length, .. } => length,
+                };
+                self.messages.push(ui::Message::OpponentShipSunk(length));
                 self.opponent_ships.push(ship);
                 client::Message::Acknowledge
             }

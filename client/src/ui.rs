@@ -43,10 +43,10 @@ pub trait UI {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Message {
     OpponentSelectsTarget,
-    ClientMissedOpponent,
-    OpponentMissedClient,
-    ClientHitOpponent,
-    OpponentHitClient,
-    OpponentShipSunk,
-    ClientShipSunk,
+    ClientMissedOpponent(logic::Position),
+    OpponentMissedClient(logic::Position),
+    ClientHitOpponent(logic::Position),
+    OpponentHitClient(logic::Position),
+    OpponentShipSunk(u8),
+    ClientShipSunk(u8),
 }

@@ -69,6 +69,20 @@ impl Position {
     }
 }
 
+impl std::fmt::Display for Position {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        const X_MAP: [char; 10] = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
+        const Y_MAP: [&str; 10] = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"];
+        let (x, y) = self.to_coords();
+        write!(
+            f,
+            "{:>width$}",
+            format!("{}{}", X_MAP[x as usize], Y_MAP[y as usize]),
+            width = f.width().unwrap_or(0)
+        )
+    }
+}
+
 impl<T> std::ops::Index<crate::Position> for [[T; 10]; 10] {
     type Output = T;
 

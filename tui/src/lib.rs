@@ -33,29 +33,35 @@ struct Layout<'s> {
 fn message_to_line(message: client::ui::Message) -> Option<text::Line<'static>> {
     match message {
         client::ui::Message::OpponentSelectsTarget => None,
-        client::ui::Message::ClientMissedOpponent => Some(text::Line::from(vec![
+        client::ui::Message::ClientMissedOpponent(pos) => Some(text::Line::from(vec![
             text::Span::raw("your shot "),
             text::Span::raw("missed").light_red(),
+            text::Span::raw(format!("{:>7}", pos)),
         ])),
-        client::ui::Message::OpponentMissedClient => Some(text::Line::from(vec![
+        client::ui::Message::OpponentMissedClient(pos) => Some(text::Line::from(vec![
             text::Span::raw("opps shot "),
             text::Span::raw("missed").yellow(),
+            text::Span::raw(format!("{pos:>7}")),
         ])),
-        client::ui::Message::ClientHitOpponent => Some(text::Line::from(vec![
+        client::ui::Message::ClientHitOpponent(pos) => Some(text::Line::from(vec![
             text::Span::raw("your shot "),
             text::Span::raw("hit").yellow(),
+            text::Span::raw(format!("{pos:>10}")),
         ])),
-        client::ui::Message::OpponentHitClient => Some(text::Line::from(vec![
+        client::ui::Message::OpponentHitClient(pos) => Some(text::Line::from(vec![
             text::Span::raw("opps shot "),
             text::Span::raw("hit").light_red(),
+            text::Span::raw(format!("{pos:>10}")),
         ])),
-        client::ui::Message::OpponentShipSunk => Some(text::Line::from(vec![
+        client::ui::Message::OpponentShipSunk(length) => Some(text::Line::from(vec![
             text::Span::raw("opps ship "),
             text::Span::raw("sunk").yellow(),
+            text::Span::raw(format!("  len: {length:>2}")),
         ])),
-        client::ui::Message::ClientShipSunk => Some(text::Line::from(vec![
+        client::ui::Message::ClientShipSunk(length) => Some(text::Line::from(vec![
             text::Span::raw("your ship "),
             text::Span::raw("sunk").light_red(),
+            text::Span::raw(format!("  len: {length:>2}")),
         ])),
     }
 }

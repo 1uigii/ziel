@@ -152,17 +152,69 @@ impl<'s> Layout<'s> {
 
         f.render_widget(widgets::Paragraph::new(iter).gray(), self.messages);
     }
+
+    fn default_size() -> layout::Size {
+        layout::Size {
+            width: 23,
+            height: 7,
+        }
+    }
+
+    fn ship_placement_size() -> layout::Size {
+        layout::Size {
+            width: 12,
+            height: 7,
+        }
+    }
+
+    fn check_term_too_small(f: &mut ratatui::Frame, size: layout::Size) -> bool {
+        if f.area().width < size.width || f.area().height < size.height {
+            f.render_widget(
+                widgets::Paragraph::new(vec![
+                    text::Line::raw("size too small"),
+                    text::Line::from(vec![
+                        text::Span::raw("w = "),
+                        text::Span::raw(format!("{}", f.area().width)).fg(
+                            if f.area().width < size.width {
+                                style::Color::Red
+                            } else {
+                                style::Color::Green
+                            },
+                        ),
+                        text::Span::raw(" h = "),
+                        text::Span::raw(format!("{}", f.area().height)).fg(
+                            if f.area().height < size.height {
+                                style::Color::Red
+                            } else {
+                                style::Color::Green
+                            },
+                        ),
+                    ]),
+                    text::Line::raw(""),
+                    text::Line::raw("needed term. size"),
+                    text::Line::raw(format!("w >= {} h >= {}", size.width, size.height)),
+                ])
+                .centered(),
+                f.area(),
+            );
+            true
+        } else {
+            false
+        }
+    }
 }
 
 #[derive(Debug)]
 pub struct Tui {
     term: ratatui::DefaultTerminal,
+    cursor_pos: (u8, u8),
 }
 
 impl Tui {
     pub fn init() -> Tui {
         Tui {
             term: ratatui::init(),
+            cursor_pos: (0, 0),
         }
     }
 }
@@ -243,6 +295,9 @@ impl client::UI for Tui {
             }
 
             self.term.draw(|f| {
+                if Layout::check_term_too_small(f, Layout::ship_placement_size()) {
+                    return;
+                }
                 let [horizonta_area] = layout::Layout::horizontal([layout::Constraint::Length(12)])
                     .flex(layout::Flex::Center)
                     .areas(f.area());
@@ -278,8 +333,7 @@ impl client::UI for Tui {
         &mut self,
         info: client::ui::ClientInfo,
     ) -> Result<logic::Position, Self::Error> {
-        let mut x = 0u8;
-        let mut y = 0u8;
+        let (mut x, mut y) = self.cursor_pos;
 
         loop {
             match event::read()? {
@@ -292,6 +346,7 @@ impl client::UI for Tui {
                         KeyCode::Char(' ') => {
                             let pos = logic::Position::try_from_coords((x, y)).unwrap();
                             if info.opponent_hit_map[pos].is_none() {
+                                self.cursor_pos = (x, y);
                                 return Ok(pos);
                             }
                         }
@@ -303,6 +358,10 @@ impl client::UI for Tui {
             }
 
             self.term.draw(|f| {
+                if Layout::check_term_too_small(f, Layout::default_size()) {
+                    return;
+                }
+
                 let mut layout = Layout::generate(f.area());
                 layout.opponent_board_border = layout.opponent_board_border.title("sel. targ.");
 
@@ -351,6 +410,10 @@ impl client::UI for Tui {
         }
 
         self.term.draw(|f| {
+            if Layout::check_term_too_small(f, Layout::default_size()) {
+                return;
+            }
+
             let layout = Layout::generate(f.area());
 
             layout.paint_client_board(f, |ctx| {
@@ -384,6 +447,10 @@ impl client::UI for Tui {
         const MESSAGE: &str = "V I C T O R Y";
 
         self.term.draw(|f| {
+            if Layout::check_term_too_small(f, Layout::default_size()) {
+                return;
+            }
+
             let layout = Layout::generate(f.area());
 
             layout.paint_client_board(f, |ctx| {
@@ -445,6 +512,10 @@ impl client::UI for Tui {
         const MESSAGE: &str = "L O S S";
 
         self.term.draw(|f| {
+            if Layout::check_term_too_small(f, Layout::default_size()) {
+                return;
+            }
+
             let layout = Layout::generate(f.area());
 
             layout.paint_client_board(f, |ctx| {
@@ -590,6 +661,9 @@ impl Tui {
             }
 
             self.term.draw(|f| {
+                if Layout::check_term_too_small(f, Layout::ship_placement_size()) {
+                    return;
+                }
                 let [horizonta_area] = layout::Layout::horizontal([layout::Constraint::Length(12)])
                     .flex(layout::Flex::Center)
                     .areas(f.area());

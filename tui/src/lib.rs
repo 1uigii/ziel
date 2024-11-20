@@ -270,30 +270,6 @@ impl client::UI for Tui {
         .unwrap();
 
         loop {
-            match event::read()? {
-                event::Event::Key(key) if key.kind == event::KeyEventKind::Press => {
-                    match key.code {
-                        KeyCode::Char('a') | KeyCode::Left if x > 0 => x -= 1,
-                        KeyCode::Char('d') | KeyCode::Right if x < 9 => x += 1,
-                        KeyCode::Char('w') | KeyCode::Up if y > 0 => y -= 1,
-                        KeyCode::Char('s') | KeyCode::Down if y < 9 => y += 1,
-                        KeyCode::Char(' ') => {
-                            let pos = logic::Position::try_from_coords((x, y)).unwrap();
-                            for (idx, ship) in ships.into_iter().enumerate() {
-                                if ship.into_iter().any(|p| p == pos) {
-                                    ships = self.place_ship(ships, idx, &mut x, &mut y)?;
-                                    break;
-                                }
-                            }
-                        }
-                        KeyCode::Enter => return Ok(ships),
-                        KeyCode::Char('q') => return Err(Error::PlayerInterrupt),
-                        _ => {}
-                    }
-                }
-                _ => {}
-            }
-
             self.term.draw(|f| {
                 if Layout::check_term_too_small(f, Layout::ship_placement_size()) {
                     return;
@@ -326,6 +302,30 @@ impl client::UI for Tui {
                 });
                 f.render_widget(canvas, area);
             })?;
+
+            match event::read()? {
+                event::Event::Key(key) if key.kind == event::KeyEventKind::Press => {
+                    match key.code {
+                        KeyCode::Char('a') | KeyCode::Left if x > 0 => x -= 1,
+                        KeyCode::Char('d') | KeyCode::Right if x < 9 => x += 1,
+                        KeyCode::Char('w') | KeyCode::Up if y > 0 => y -= 1,
+                        KeyCode::Char('s') | KeyCode::Down if y < 9 => y += 1,
+                        KeyCode::Char(' ') => {
+                            let pos = logic::Position::try_from_coords((x, y)).unwrap();
+                            for (idx, ship) in ships.into_iter().enumerate() {
+                                if ship.into_iter().any(|p| p == pos) {
+                                    ships = self.place_ship(ships, idx, &mut x, &mut y)?;
+                                    break;
+                                }
+                            }
+                        }
+                        KeyCode::Enter => return Ok(ships),
+                        KeyCode::Char('q') => return Err(Error::PlayerInterrupt),
+                        _ => {}
+                    }
+                }
+                _ => {}
+            }
         }
     }
 
@@ -336,27 +336,6 @@ impl client::UI for Tui {
         let (mut x, mut y) = self.cursor_pos;
 
         loop {
-            match event::read()? {
-                event::Event::Key(key) if key.kind == event::KeyEventKind::Press => {
-                    match key.code {
-                        KeyCode::Char('a') | KeyCode::Left if x > 0 => x -= 1,
-                        KeyCode::Char('d') | KeyCode::Right if x < 9 => x += 1,
-                        KeyCode::Char('w') | KeyCode::Up if y > 0 => y -= 1,
-                        KeyCode::Char('s') | KeyCode::Down if y < 9 => y += 1,
-                        KeyCode::Char(' ') => {
-                            let pos = logic::Position::try_from_coords((x, y)).unwrap();
-                            if info.opponent_hit_map[pos].is_none() {
-                                self.cursor_pos = (x, y);
-                                return Ok(pos);
-                            }
-                        }
-                        KeyCode::Char('q') => return Err(Error::PlayerInterrupt),
-                        _ => {}
-                    }
-                }
-                _ => {}
-            }
-
             self.term.draw(|f| {
                 if Layout::check_term_too_small(f, Layout::default_size()) {
                     return;
@@ -392,15 +371,21 @@ impl client::UI for Tui {
 
                 layout.draw_messages(f, info.messages);
             })?;
-        }
-    }
 
-    fn display_board(&mut self, info: client::ui::ClientInfo) -> Result<(), Self::Error> {
-        // TODO: something against event stacking
-        while event::poll(std::time::Duration::from_secs(0))? {
             match event::read()? {
                 event::Event::Key(key) if key.kind == event::KeyEventKind::Press => {
                     match key.code {
+                        KeyCode::Char('a') | KeyCode::Left if x > 0 => x -= 1,
+                        KeyCode::Char('d') | KeyCode::Right if x < 9 => x += 1,
+                        KeyCode::Char('w') | KeyCode::Up if y > 0 => y -= 1,
+                        KeyCode::Char('s') | KeyCode::Down if y < 9 => y += 1,
+                        KeyCode::Char(' ') => {
+                            let pos = logic::Position::try_from_coords((x, y)).unwrap();
+                            if info.opponent_hit_map[pos].is_none() {
+                                self.cursor_pos = (x, y);
+                                return Ok(pos);
+                            }
+                        }
                         KeyCode::Char('q') => return Err(Error::PlayerInterrupt),
                         _ => {}
                     }
@@ -408,7 +393,9 @@ impl client::UI for Tui {
                 _ => {}
             }
         }
+    }
 
+    fn display_board(&mut self, info: client::ui::ClientInfo) -> Result<(), Self::Error> {
         self.term.draw(|f| {
             if Layout::check_term_too_small(f, Layout::default_size()) {
                 return;
@@ -439,6 +426,18 @@ impl client::UI for Tui {
 
             layout.draw_messages(f, info.messages);
         })?;
+
+        while event::poll(std::time::Duration::from_secs(0))? {
+            match event::read()? {
+                event::Event::Key(key) if key.kind == event::KeyEventKind::Press => {
+                    match key.code {
+                        KeyCode::Char('q') => return Err(Error::PlayerInterrupt),
+                        _ => {}
+                    }
+                }
+                _ => {}
+            }
+        }
 
         Ok(())
     }

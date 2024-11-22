@@ -27,8 +27,15 @@ The Keybinds:
 - when in battle mode
   - `<space>` select a target
 
- ## Create a Custom UI
+## Create a Custom UI
  - Implement the UI trait in `client::ui::UI`
  - Rewrite the main funtion to use your UI
 
  Documentation will follow for the implementation of the trait.
+
+## Building from source
+```bash
+git clone https://github.com/1uigii/ziel.git
+cd ziel
+cargo build
+```

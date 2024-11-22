@@ -80,10 +80,15 @@ impl Client {
         }?;
         let response = match request {
             server::Message::RequestShips => client::Message::ReturnShips(self.ships.clone()),
-            server::Message::RequestTarget => client::Message::ReturnTarget(
-                ui.request_target((self as &Client).into())
-                    .map_err(ui::Error::to_ui_error)?,
-            ),
+            server::Message::RequestTarget => {
+                let target = ui
+                    .request_target((self as &Client).into())
+                    .map_err(ui::Error::to_ui_error)?;
+                if self.opponent_hit_map[target].is_some() {
+                    return Err(Error::UIError(ui::Error::InvalidTarget));
+                }
+                client::Message::ReturnTarget(target)
+            }
             server::Message::InformTargetSelection => {
                 self.messages.push(ui::Message::OpponentSelectsTarget);
                 client::Message::Acknowledge

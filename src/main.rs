@@ -31,17 +31,16 @@ async fn run_server(addr: net::SocketAddr) {
     }
 }
 
-async fn run_client(addr: net::SocketAddr) -> Result<bool, client::Error<tui::Tui>> {
+async fn run_tui_client(addr: net::SocketAddr) -> Result<bool, client::Error<tui::Tui>> {
     let mut tui = tui::Tui::init();
-    let client = client::Client::handshake(&mut tui, addr).await?;
-    client.play(&mut tui).await
+    client::play_round(&mut tui, addr).await
 }
 
 #[tokio::main]
 async fn main() {
     match Args::parse() {
         Args::Server { addr } => run_server(addr).await,
-        Args::Client { addr } => match run_client(addr).await {
+        Args::Client { addr } => match run_tui_client(addr).await {
             Ok(true) => println!("congrats, you won"),
             Ok(false) => println!("you lost, maybe try again?"),
             Err(err) => eprintln!("{err}"),

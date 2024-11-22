@@ -189,3 +189,7 @@ impl Client {
         }
     }
 }
+
+pub async fn play_round<I: UI>(ui: &mut I, addr: std::net::SocketAddr) -> Result<bool, Error<I>> {
+    Client::handshake(ui, addr).await?.play(ui).await
+}

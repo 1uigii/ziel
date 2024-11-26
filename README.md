@@ -1,7 +1,7 @@
 A simple and modular implementation of the popular battleship game.
 
 ## How to run the game
-The executable can be work as server or as client.
+The executable can be run as server or as client.
 ```bash
 # run the server
 ziel server --addr <ADDR> default: 127.0.0.1:8080
@@ -10,7 +10,7 @@ ziel server --addr <ADDR> default: 127.0.0.1:8080
 ziel client --addr <ADDR> default: 127.0.0.1:8080
 ```
 
-To run it directly from the source code use cargo.
+To run it directly from the source code, use cargo.
 ```bash
 # run the server
 cargo r -r -- server --addr <ADDR> default: 127.0.0.1:8080
@@ -31,7 +31,7 @@ The Keybinds:
  - Implement the UI trait in `client::ui::UI`
  - Rewrite the main funtion to use your UI
 
- Documentation will follow for the implementation of the trait.
+Documentation will follow for the implementation of the trait.
 
 ## Building from source
 ```bash
